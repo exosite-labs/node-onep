@@ -1,0 +1,23 @@
+{
+  "name": "onep",
+  "description": "Node bindings for the Exosite One Platform APIs",
+  "tags": [
+    "exosite",
+    "oneplatform",
+    "bindings",
+    "wrapper",
+    "library",
+    "api"
+  ],
+  "version": "0.0.1",
+  "author": "Dan Weaver <danweaver.mn@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dweaver/node-onep"
+  },
+  "main": "rpc",
+  "devDependencies": {},
+  "engines": {
+    "node": "*"
+  }
+}
