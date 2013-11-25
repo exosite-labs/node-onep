@@ -214,6 +214,7 @@ rpc.setOptions(<options>)
 ```
 
 - `<options>` contains one or more options to update. Default options are as follows:
+
 ```
 {
   host: 'm2.exosite.com',
