@@ -9,11 +9,16 @@
     "library",
     "api"
   ],
-  "version": "0.0.1",
+  "version": "0.1.0",
   "author": "Dan Weaver <danweaver.mn@gmail.com>",
   "repository": {
     "type": "git",
     "url": "https://github.com/dweaver/node-onep"
+  },
+  "dependencies": {
+    "async": "~0.2.9",
+    "underscore": "~1.5.2",
+    "request": "~2.27.0"
   },
   "main": "rpc",
   "devDependencies": {},
