@@ -33,7 +33,6 @@ Make a single call to the RPC API.
 
 ```
 rpc.call(<auth>, <procedure>, <arguments>, <callback>)
-
 ```
 
 - `<auth>` may be a 40 character client key (e.g. `'0808160000000000000000000000000000000000'`), or an auth object (e.g. `{cik: '0808160000000000000000000000000000000000', client_key: 'e208160000000000000000000000000000000000'}`). See the [RPC documentation](https://github.com/exosite/api/tree/master/rpc#authentication) for details.
@@ -75,20 +74,18 @@ Make multiple calls to the RPC API.
 
 ```
 rpc.callMulti(<auth>, <calls>, <callback>)
-
 ```
+
 - `<auth>` may be a 40 character client key (e.g. `'0808160000000000000000000000000000000000'`), or an auth object (e.g. `{cik: '0808160000000000000000000000000000000000', client_key: 'e208160000000000000000000000000000000000'}`). See the [RPC documentation](https://github.com/exosite/api/tree/master/rpc#authentication) for details.
 - `<calls>` is a list of calls like this: `{procedure: <procedure>, arguments: <arguments>}`. See the [RPC documentation](https://github.com/exosite/api/tree/master/rpc#procedures) for a list of procedures and arguments.
 - `<callback>` is a function is called when the call completes. It takes three parameters: 
     `err` is null if the call was made successfully (no HTTP or RPC general error). If the call failed, `err` contains the error message.
     `rpcresponse` contains a list of RPC responses. 
     `httpresponse` is the response object.
-```
 
 #### Example
 
 ```
-
 // get listing and info in one request
 rpc.callMulti(
   cik,
@@ -126,7 +123,6 @@ Return the RIDs of all descendants of a client.
 
 ```
 rpc.tree(<auth>, <options>, <callback>)
-
 ```
 
 - `<auth>` may be a 40 character client key (e.g. `'0808160000000000000000000000000000000000'`), or an auth object (e.g. `{cik: '0808160000000000000000000000000000000000', client_key: 'e208160000000000000000000000000000000000'}`). See the [RPC documentation](https://github.com/exosite/api/tree/master/rpc#authentication) for details.
@@ -210,7 +206,7 @@ Visiting 7f5cba0000000000000000000000000000000000 (client) depth:2
 Set options for connecting to the One Platform.
 
 ```
-rpc.setOptions(<options>)
+rpc.setOptions(\<options\>)
 ```
 
 - `<options>` contains one or more options to update. Default options are as follows:
