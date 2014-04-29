@@ -21,9 +21,7 @@ rpc.call(cik, 'info', [{alias: ''}, {}],
     }
   }
 });
-
 ``` 
-
 
 ## API
 
@@ -45,7 +43,7 @@ rpc.call(<auth>, <procedure>, <arguments>, <callback>)
 
 #### Example
 
-```
+```javascript
 var rpc = require('onep/rpc');
 rpc.call(
     cik,
@@ -85,7 +83,7 @@ rpc.callMulti(<auth>, <calls>, <callback>)
 
 #### Example
 
-```
+```javascript
 // get listing and info in one request
 rpc.callMulti(
   cik,
@@ -136,7 +134,7 @@ rpc.tree(<auth>, <options>, <callback>)
 
 #### Example
 
-```
+```javascript
 rpc.tree(
   cik,
   {
