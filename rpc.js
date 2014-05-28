@@ -153,7 +153,7 @@ function _tree(cik, options, callback, depth, client_rid) {
           // add tree to each resource
           async.map(resources, function(resource, callback) {
             if (options.hasOwnProperty('resource_callback')) {
-              options.resource_callback(resource.rid, 'client', depth + 1);
+              options.resource_callback(resource.rid, resource.hasOwnProperty('type') ? resource.type : 'client', depth + 1);
             }
             if (!resource.hasOwnProperty('type') || resource.type === 'client') {
               // resource is a client

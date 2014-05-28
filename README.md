@@ -125,12 +125,18 @@ rpc.tree(<auth>, <options>, <callback>)
 
 - `<auth>` may be a 40 character client key (e.g. `'0808160000000000000000000000000000000000'`), or an auth object (e.g. `{cik: '0808160000000000000000000000000000000000', client_key: 'e208160000000000000000000000000000000000'}`). See the [RPC documentation](https://github.com/exosite/api/tree/master/rpc#authentication) for details.
 - `<options>` is an object with the following keys, all optional:
-    `depth`              stop at a given depth from the root client (if omitted, depth is not limited)
-    `resource_callback`  function to call for each resource visited. It is called with `rid`, `type`, and `depth` parameters.
-    `types`              list of type strings. Options are 'dataport', 'datarule', 'dispatch'. If omitted, visits only clients.
+
+    - `depth`              stop at a given depth from the root client (if omitted, depth is not limited)
+
+    - `resource_callback`  function to call for each resource visited. It is called with `rid`, `type`, and `depth` parameters.
+
+    - `types`              list of type strings. Options are 'dataport', 'datarule', 'dispatch'. If omitted, visits only clients.
+
 - `<callback>` is a function is called when the call completes. It takes the following parameters: 
-    `err` is null if the call succeeded. If the call failed, `err` contains the error message.
-    `tree` is the tree. If the call failed, it is undefined.
+
+    - `err` is null if the call succeeded. If the call failed, `err` contains the error message.
+
+    - `tree` is the tree. If the call failed, it is undefined.
 
 #### Example
 

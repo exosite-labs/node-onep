@@ -9,8 +9,8 @@
     "library",
     "api"
   ],
-  "version": "0.1.0",
-  "author": "Dan Weaver <danweaver.mn@gmail.com>",
+  "version": "0.1.1",
+  "author": "Dan Weaver <danweaver@exosite.com>",
   "repository": {
     "type": "git",
     "url": "https://github.com/dweaver/node-onep"
