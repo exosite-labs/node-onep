@@ -61,7 +61,7 @@ exports.callMulti = function(auth, calls, callback) {
     } else {
       var obj = JSON.parse(body);
       if (!Array.isArray(obj)) {
-        callback('General RPC error: ' + JSON.stringify(obj.error), null);
+        callback('General RPC error: ' + JSON.stringify(obj.error), obj, response);
       } else {
         var responses = [];
         for (var i = 0; i < calls.length; i++) {
