@@ -9,7 +9,7 @@
     "library",
     "api"
   ],
-  "version": "0.1.2",
+  "version": "0.1.3",
   "author": "Dan Weaver <danweaver@exosite.com>",
   "repository": {
     "type": "git",
