@@ -56,7 +56,9 @@ exports.callMulti = function(auth, calls, callback) {
       callback(error);
       return;
     }
-    if (body.length === 0) {
+    if (response.statusCode !== 200) {
+      callback("Status " + response.statusCode + ": " + body);
+    } else if (body.length === 0) {
       callback("Empty response body", null);
     } else {
       var obj = JSON.parse(body);
