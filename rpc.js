@@ -7,7 +7,7 @@ var OPTIONS = {
   host: 'm2.exosite.com',
   path: '/api:v1/rpc/process',
   agent: 'node-onep',
-  https: false 
+  https: false
 }
 
 exports.setOptions = function(options) {
@@ -48,8 +48,9 @@ exports.callMulti = function(auth, calls, callback) {
     },
     body: body
   }
-  //console.log(options);
-  //console.log(body);
+  if (OPTIONS.hasOwnProperty('timeout')) {
+    options.timeout = OPTIONS.timeout;
+  }
   
   request(options, function (error, response, body) {
     if (error !== null) {

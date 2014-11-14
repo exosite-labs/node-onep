@@ -223,3 +223,5 @@ rpc.setOptions(\<options\>)
   https: false 
 }
 ```
+
+You can also specify `timeout` in milliseconds, which defaults to the default for the request module.
