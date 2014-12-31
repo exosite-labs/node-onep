@@ -9,7 +9,7 @@
     "library",
     "api"
   ],
-  "version": "0.1.5",
+  "version": "0.2.0",
   "author": "Dan Weaver <danweaver@exosite.com>",
   "repository": {
     "type": "git",
@@ -21,7 +21,9 @@
     "request": "~2.27.0"
   },
   "main": "rpc",
-  "devDependencies": {},
+  "devDependencies": {
+    "onep-mock": "0.0.4"
+  },
   "engines": {
     "node": "*"
   }

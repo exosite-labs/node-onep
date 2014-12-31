@@ -1,27 +1,29 @@
 // node.js library for Exosite One Platform
 //
-'use strict'
+'use strict';
 var _ = require('underscore');
+var async = require('async');
+var util = require('util');
+var request = require('request');
 
 var OPTIONS = {
   host: 'm2.exosite.com',
   path: '/api:v1/rpc/process',
   agent: 'node-onep',
   https: false
-}
+};
 
 exports.setOptions = function(options) {
   _.extend(OPTIONS, options);
-}
+};
 
 exports.call = function(auth, procedure, args, callback) {
   exports.callMulti(auth, 
                     [{procedure: procedure, arguments: args}], 
                     callback);
-}
+};
 
 exports.callMulti = function(auth, calls, callback) {
-  var request = require('request')
   var protocol = OPTIONS.https ? 'https://' : 'http://';
   var port = OPTIONS.hasOwnProperty('port') ? OPTIONS.port : OPTIONS.https ? 443 : 80;
   if (typeof auth === 'string') {
@@ -34,20 +36,21 @@ exports.callMulti = function(auth, calls, callback) {
   };
   for (var i = 0; i < calls.length; i++) {
     var call = calls[i];
-    bodyobj.calls.push({id: i,
-                        procedure: call.procedure,
-                        arguments: call.arguments});
+    bodyobj.calls.push({
+      id: i,
+      procedure: call.procedure,
+      arguments: call.arguments});
   }
   var body = JSON.stringify(bodyobj);
   var options = {
-    uri: protocol + OPTIONS.host + OPTIONS.path,
+    uri: protocol + OPTIONS.host + ':' + port + OPTIONS.path,
     method: 'POST',
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'user-agent': OPTIONS.agent
     },
     body: body
-  }
+  };
   if (OPTIONS.hasOwnProperty('timeout')) {
     options.timeout = OPTIONS.timeout;
   }
@@ -67,10 +70,11 @@ exports.callMulti = function(auth, calls, callback) {
         callback('General RPC error: ' + JSON.stringify(obj.error), obj, response);
       } else {
         var responses = [];
-        for (var i = 0; i < calls.length; i++) {
+        var i;
+        for (i = 0; i < calls.length; i++) {
           responses.push(null);
         }
-        for (var i = 0; i < obj.length; i++) {
+        for (i = 0; i < obj.length; i++) {
           var id = obj[i].id;
           delete response['id'];
           responses[id] = obj[i];
@@ -79,7 +83,7 @@ exports.callMulti = function(auth, calls, callback) {
       }
     }
   });
-}
+};
 
 // tree result looks like this: [{rid: "01234...", tree: [{rid: "23456...", status: 'locked'}]}, {rid: "12345..."}]
 // options are:
@@ -98,12 +102,9 @@ exports.tree = function(cik, options, callback) {
     options.types = types;
   }
   _tree(cik, options, callback, 0);
-}
+};
 
 function _tree(cik, options, callback, depth, client_rid) {
-  var async = require('async');
-  var util = require('util');
-  var _ = require('underscore');
 
   var tree = null;
   var auth = {cik: cik};
@@ -136,16 +137,17 @@ function _tree(cik, options, callback, depth, client_rid) {
             return;
           }
           var resources = [];
+          var makeObj = function(rid) { 
+            var r = {rid: rid}; 
+            if (type !== 'client') {
+              r.type = type;
+            }
+            return r;
+          };
           for (var i = 0; i < types.length; i++) {
             var type = types[i];
             var rids = all_rids[i];
-            resources = resources.concat(_.map(rids, function(rid) { 
-              var r = {rid: rid}; 
-              if (type !== 'client') {
-                r.type = type;
-              }
-              return r;
-            }));
+            resources = resources.concat(_.map(rids, makeObj));
           }
           if (options.hasOwnProperty('depth')) {
               if (depth === options.depth) {
@@ -167,7 +169,7 @@ function _tree(cik, options, callback, depth, client_rid) {
                     _.extend(resource, err);
                     callback(null, resource);
                   } else {
-                    callback(err)
+                    callback(err);
                   }
                 } else {
                   // only include tree if the client has children
@@ -184,7 +186,7 @@ function _tree(cik, options, callback, depth, client_rid) {
             }
           },
           function(err, tree) {
-            if (err) callback(err)
+            if (err) callback(err);
             else {
               callback(null, tree);
             }

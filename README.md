@@ -220,8 +220,18 @@ rpc.setOptions(\<options\>)
   host: 'm2.exosite.com',
   path: '/api:v1/rpc/process',
   agent: 'node-onep',
-  https: false 
+  https: false,
+  port: 80
 }
 ```
 
 You can also specify `timeout` in milliseconds, which defaults to the default for the request module.
+
+## Tests
+
+```
+$ cp test/test-template.js test/test.js
+$ mocha
+```
+
+By default the tests run against the [mock 1P server](https://www.npmjs.com/package/onep-mock). To make them run against production 1P, modify test/test.js with a production CIK and turn off using the mock server.
