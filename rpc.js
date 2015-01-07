@@ -76,7 +76,7 @@ exports.callMulti = function(auth, calls, callback) {
         }
         for (i = 0; i < obj.length; i++) {
           var id = obj[i].id;
-          delete response['id'];
+          delete response.id;
           responses[id] = obj[i];
         } 
         callback(null, responses, response);
@@ -117,25 +117,21 @@ function _tree(cik, options, callback, depth, client_rid) {
   exports.call(
     auth,
     'listing',
-    [types],
+    [types, {}],
     function(err, rpcresponse, httpresponse) {
       if (err) {
-        // console.log('error: ' + err);
         callback(err);
       } else {
-        // console.log(rpcresponse);
         var status = rpcresponse[0].status;
         if (status !== 'ok') {
-          //console.log('status: ' + status);
           callback({status: status});
         } else {          
           var all_rids = rpcresponse[0].result;
-          var client_rids = all_rids[0];
-          // if there are no children, respond with an empty tree
-          if (_.flatten(all_rids).length === 0) {
+          if (_.flatten(_.values(all_rids)).length === 0) {
             callback(null, []);
             return;
           }
+          var client_rids = all_rids.client;
           var resources = [];
           var makeObj = function(rid) { 
             var r = {rid: rid}; 
@@ -146,8 +142,7 @@ function _tree(cik, options, callback, depth, client_rid) {
           };
           for (var i = 0; i < types.length; i++) {
             var type = types[i];
-            var rids = all_rids[i];
-            resources = resources.concat(_.map(rids, makeObj));
+            resources = resources.concat(_.map(all_rids[type], makeObj));
           }
           if (options.hasOwnProperty('depth')) {
               if (depth === options.depth) {
@@ -156,7 +151,7 @@ function _tree(cik, options, callback, depth, client_rid) {
               }
           }
           // add tree to each resource
-          async.map(resources, function(resource, callback) {
+          async.mapLimit(resources, 10, function(resource, callback) {
             if (options.hasOwnProperty('resource_callback')) {
               options.resource_callback(resource.rid, resource.hasOwnProperty('type') ? resource.type : 'client', depth + 1);
             }
@@ -173,7 +168,7 @@ function _tree(cik, options, callback, depth, client_rid) {
                   }
                 } else {
                   // only include tree if the client has children
-                  // (or if it's not null, which signals depth limit was reached)
+                  // (or if it's not null, which means depth limit was reached)
                   if (tree !== null && tree.length > 0) {
                     resource.tree = tree;
                   }
