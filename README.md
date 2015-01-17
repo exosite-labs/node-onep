@@ -1,6 +1,6 @@
 # One Platform Library for Node.js
 
-This node.js library provides access to the [One Platform RPC API](https://github.com/exosite/api/tree/master/rpc).
+This node.js library provides access to the [One Platform RPC API](https://github.com/exosite/api/tree/master/rpc). It's still alpha/unofficial but getting better :-).
 
 [![NPM](https://nodei.co/npm/onep.png)](https://nodei.co/npm/onep/) 
 
