@@ -149,6 +149,7 @@ exports.tree = function(auth, options, callback) {
     }
     exports.batch(auth, infoRequests, {}, function(err, responses) {
       var info = {};
+      //console.log(JSON.stringify(infoRequests));
       _.each(responses, function(response, i) {
         if (response.status === 'ok') {
           info[infoRequests[i].arguments[0]] = response.result;
@@ -157,13 +158,11 @@ exports.tree = function(auth, options, callback) {
         }
       });
       exports.walk(tree, 
-        function(resource, depth, callback) {
+        function(resource, depth) {
           if (resource.rid in info) {
             resource.info = info[resource.rid];
           }
-          callback(null);
-        },
-        callback);
+        });
     });
   });
 };
@@ -173,27 +172,17 @@ exports.tree = function(auth, options, callback) {
  * calling visit(tree, depth) on each resource and expecting
  * calling callback(err, tree) when the visit is complete.
  */
-exports.walk = function(tree, visit, callback) {
-  _walk(tree, visit, 0, callback);
+exports.walk = function(tree, visit) {
+  _walk(tree, visit, 0);
 };
 
-function _walk(tree, visit, depth, callback) {
-  visit(tree, depth, function(err) {
-    if (err) {
-      return callback(err);
+function _walk(tree, visit, depth) {
+  visit(tree, depth);
+  if (tree.hasOwnProperty('children')) {
+    for (var i = 0; i < tree.children.length; i++) {
+        _.walk(tree.children[i], visit, depth + 1);
     }
-    if (tree.hasOwnProperty('children')) {
-      async.mapSeries(tree.children, function(child, mapCallback) {
-        _walk(child, visit, depth + 1, mapCallback);
-      }, function(err, results) {
-        // done processing children
-        callback(err, tree);  
-      });
-    } else {
-      // no children
-      callback(err, tree);
-    }
-  });
+  }
 }
 
 // handle listing single client and call back

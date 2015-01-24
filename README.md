@@ -218,14 +218,12 @@ rpc.batch(auth, calls, options, callback)
 Walk the object returned by `tree()`.
 
 ```
-rpc.walk(tree, visit, callback);
+rpc.walk(tree, visit);
 ```
 
  * `tree` is the object returned by calling tree()
 
- * calls `visit(tree, depth)` on each resource and expecting
-
- * calls `callback(err, tree)` when the visit is complete.
+ * calls `visit(resource, depth)` on each resource
 
 
 ### rpc.setOptions

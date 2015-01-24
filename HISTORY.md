@@ -1,3 +1,7 @@
+# 0.3.1 (2015-01-24)
+
+- breaking change: make walk() synchronous
+
 # 0.3.0 (2015-01-23)
 
 - add `info` option for tree to get info for each resource
