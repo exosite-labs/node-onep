@@ -102,14 +102,17 @@ describe('app', function() {
             },
             function(err, tree) { 
               assert(!err, 'General error ' + err);
-              assert(_.isArray(tree));
-              assert(tree.length===2);
-              assert(tree[0].hasOwnProperty('rid'));
-              assert(tree[1].hasOwnProperty('rid'));
-              var clientIdx = tree[0].type === 'dataport' ? 1 : 0;
-              assert.equal(tree[clientIdx].tree[0].type, 'dataport');
-              assert.equal(tree[clientIdx === 0 ? 1 : 0].type, 'dataport');
-              assert(tree[1].hasOwnProperty('rid'));
+              assert(_.isObject(tree));
+              assert(tree.hasOwnProperty('rid'));
+              assert(tree.type === 'client');
+              assert(tree.children.length===2);
+              assert(tree.children[0].hasOwnProperty('rid'));
+              assert(tree.children[1].hasOwnProperty('rid'));
+              var clientIdx = tree.children[0].type === 'dataport' ? 1 : 0;
+              console.log(JSON.stringify(tree.children[clientIdx]));
+              assert.equal(tree.children[clientIdx].children[0].type, 'dataport');
+              assert.equal(tree.children[clientIdx === 0 ? 1 : 0].type, 'dataport');
+              assert(tree.children[1].hasOwnProperty('rid'));
               done();
               callback(null);
             });
