@@ -1,6 +1,7 @@
-# 0.3.2 (2015-01-24)
+# 0.3.2 (2015-01-25)
 
-- don't call listing unnecessarily when depth is reached
+- tree speed improvements: don't call listing unnecessarily when depth is 
+  reached and call info for clients with listing request
 
 # 0.3.1 (2015-01-24)
 

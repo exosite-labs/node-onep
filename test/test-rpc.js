@@ -103,7 +103,6 @@ describe('app', function() {
                 //console.log('Visiting ' + rid + ' (' + type + ') depth:' + depth);
               },
               info: function(rid, type, depth) {
-                console.log('info fn was called!');
                 return type === 'dataport' ?  {description: true} : {basic: true};
               },
               types: ['dataport', 'datarule', 'dispatch']
@@ -116,7 +115,7 @@ describe('app', function() {
                 assert.equal(keys.length, 1);
                 assert.equal(keys[0], type, resStr);
               }
-              assert(!err, 'General error ' + err);
+              assert(!err, 'General error ' + jstr(err));
 
               // test root
               assert(_.isObject(tree));

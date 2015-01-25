@@ -238,30 +238,48 @@ function _tree(auth, options, depth, client_rid, infoRequests, callback) {
 
   // helper functions
   // this defines how a tree resource looks
-  function makeResource(rid, type, children) {
+  function makeResource(rid, type, children, info) {
     var resource = {rid: rid, type: type};
-    if (typeof children !== 'undefined') {
+    if (typeof children !== 'undefined' && children !== null) {
       resource.children = children;
     }
+    if (typeof info !== 'undefined' && info !== null) {
+      resource.info = info;
+    } 
     return resource;
   }
-  // visit a resource, and add to
+  
+  // Determine whether we should do an RPC info
+  // call for a resource. If so, returns info options.
+  // If not, returns null.
+  function getInfo(rid, type, depth) {
+    var info = null; 
+    if (options.hasOwnProperty('info')) {
+      if (_.isFunction(options.info)) {
+        info = options.info(rid, type, depth);
+      } else {
+        info = options.info;
+      }
+    } 
+    return info;
+  }
+  
+  // Visit a resource, and add to
   // the list of info requests to make in batch later
   function visit(rid, type, depth) {
     var visitFn = options.visit || null;
     if (visitFn !== null) {
       visitFn(rid, type, depth);
     }
-    if (options.hasOwnProperty('info')) {
-      var info = null; 
-      if (_.isFunction(options.info)) {
-        info = options.info(rid, type, depth);
-      } else {
-        info = options.info;
-      }
-      if (info !== null) {
-        infoRequests.push({procedure: 'info', arguments: [rid, info]}); 
-      }
+  }
+
+  // Visit a resource and then add an info 
+  // call to be made later, if necessary.
+  function visitAndQueue(rid, type, depth) {
+    visit(rid, type, depth);
+    var info = getInfo(rid, type, depth);
+    if (info !== null) {
+      infoRequests.push({procedure: 'info', arguments: [rid, info]}); 
     }
   }
 
@@ -270,7 +288,7 @@ function _tree(auth, options, depth, client_rid, infoRequests, callback) {
   // if we've reached depth and already have
   // an rid, we don't need to make RPC calls 
   if (depth === options.depth && rid !== null) {
-    visit(rid, 'client', depth);
+    visitAndQueue(rid, 'client', depth);
     return callback(null, makeResource(rid, 'client'), infoRequests);
   }
 
@@ -283,6 +301,13 @@ function _tree(auth, options, depth, client_rid, infoRequests, callback) {
   if (rid === null) {
     // rid is unknown, so look it up
     calls.push({procedure: 'lookup', arguments: ['alias', '']});
+  } else {
+    // if we need info for this node, piggy-back an info procedure
+    // call on this RPC request instead of queuing it at the end.
+    var infoOptions = getInfo(rid, 'client', depth);
+    if (infoOptions !== null) {
+      calls.push({procedure: 'info', arguments: [rid, infoOptions]});
+    }
   }
 
   exports.callMulti(
@@ -296,16 +321,28 @@ function _tree(auth, options, depth, client_rid, infoRequests, callback) {
       if (err) {
         return callback({error: err.toString()});
       }
+
       var lookupIdx = _.pluck(calls, 'procedure').indexOf('lookup');
       if (lookupIdx !== -1) {
         // root RID lookup
         rid = rpcresponse[lookupIdx].result;
       }
-      visit(rid, 'client', depth);
-      var listingIdx = _.pluck(calls, 'procedure').indexOf('listing');
+      var infoIdx = _.pluck(calls, 'procedure').indexOf('info');
+      var clientInfo = null; 
+      if (infoIdx !== -1) {
+        clientInfo = rpcresponse[infoIdx].result;
+        // visit without queuing a call for info
+        visit(rid, 'client', depth);
+      } else {
+        // info was not called yet because we didn't have
+        // the RID available to determine if it needed
+        // to be called.
+        visitAndQueue(rid, 'client', depth);
+      }
 
+      var listingIdx = _.pluck(calls, 'procedure').indexOf('listing');
       if (listingIdx === -1) {
-        return callback(null, makeResource(rid, 'client'), infoRequests);
+        return callback(null, makeResource(rid, 'client', null, clientInfo), infoRequests);
       }
 
       var all_rids = rpcresponse[listingIdx].result;
@@ -343,7 +380,7 @@ function _tree(auth, options, depth, client_rid, infoRequests, callback) {
           });
         } else {
           // non-clients get visited but don't get a recursive call
-          visit(resource.rid, resource.type, depth + 1);
+          visitAndQueue(resource.rid, resource.type, depth + 1);
           mapLimitCallback(null, resource);
         }
       },
@@ -351,7 +388,7 @@ function _tree(auth, options, depth, client_rid, infoRequests, callback) {
         if (err) {
           return callback(err);
         }
-        callback(null, makeResource(rid, 'client', children), infoRequests);
+        callback(null, makeResource(rid, 'client', children, clientInfo), infoRequests);
       });
     }
   );
