@@ -30,6 +30,9 @@ exports.setOptions = function(options) {
   _.extend(OPTIONS, options);
 };
 
+/**
+ * Make a single RPC call
+ */
 exports.call = function(auth, procedure, args, callback) {
   exports.callMulti(
     auth, 
@@ -37,6 +40,9 @@ exports.call = function(auth, procedure, args, callback) {
     callback);
 };
 
+/**
+ * Make multiple calls in one RPC request
+ */
 exports.callMulti = function(auth, calls, callback) {
   var protocol = OPTIONS.https ? 'https://' : 'http://';
   var port = OPTIONS.hasOwnProperty('port') ? OPTIONS.port : OPTIONS.https ? 443 : 80;
@@ -100,6 +106,37 @@ exports.callMulti = function(auth, calls, callback) {
 };
 
 /**
+ * Returns a new Error object if there was a general
+ * error in rpcresponse, or null if there
+ * is no such error.
+ */
+exports.generalError = function(rpcresponse) {
+  if (rpcresponse.hasOwnProperty('error')) {
+    return new Error(JSON.stringify(rpcresponse.error));
+  }
+  return null;
+};
+
+/**
+ * Returns a new Error object if there was a general
+ * or specific error in rpcresponse, or null if there
+ * is no error.
+ */
+exports.error = function(rpcresponse) {
+  var generalError = exports.generalError(rpcresponse);
+  if (generalError) {
+    return generalError;
+  }
+  for (var i = 0; i < rpcresponse.length; i++) {
+    var response = rpcresponse[i];
+    if (response.status !== 'ok') {
+      return new Error(JSON.stringify(rpcresponse));
+    }
+  }
+  return null;
+};
+
+/**
  * Walk the tree of a client and its descendant resources.
  *
  * result looks like this: 
@@ -141,9 +178,6 @@ exports.tree = function(auth, options, callback) {
     if (err) {
       return callback(err);
     }
-    if (!infoRequests) {
-      throw new Error("!infoRequests: " + err + tree);
-    } 
     if (infoRequests.length === 0) {
       return callback(null, tree);
     }
@@ -151,10 +185,16 @@ exports.tree = function(auth, options, callback) {
       var info = {};
       //console.log(JSON.stringify(infoRequests));
       _.each(responses, function(response, i) {
-        if (response.status === 'ok') {
-          info[infoRequests[i].arguments[0]] = response.result;
+        if (typeof response === 'undefined') {
+          var msg = 'response ' + i + ' of ' + responses.length + ' is undefined.';
+          info[infoRequests[i].arguments[0]] = {error: msg};
+          process.stderr.write(msg);
         } else {
-          info[infoRequests[i].arguments[0]] = {error: response};
+          if (response.status === 'ok') {
+            info[infoRequests[i].arguments[0]] = response.result;
+          } else {
+            info[infoRequests[i].arguments[0]] = {error: response};
+          }
         }
       });
       exports.walk(tree, 
@@ -163,6 +203,7 @@ exports.tree = function(auth, options, callback) {
             resource.info = info[resource.rid];
           }
         });
+      callback(null, tree);
     });
   });
 };
@@ -180,27 +221,32 @@ function _walk(tree, visit, depth) {
   visit(tree, depth);
   if (tree.hasOwnProperty('children')) {
     for (var i = 0; i < tree.children.length; i++) {
-        _.walk(tree.children[i], visit, depth + 1);
+      _walk(tree.children[i], visit, depth + 1);
     }
   }
 }
 
 // handle listing single client and call back
 function _tree(auth, options, depth, client_rid, infoRequests, callback) {
-  var tree = {};
   if (_.isString(auth)) {
     auth = {cik: auth};
   }
   if (client_rid !== null) {
     auth.client_id = client_rid;
   }
-  
-  var rid = client_rid;
   var types = options.hasOwnProperty('types') ? options.types : ['client'];
-  var calls = [{procedure: 'listing', arguments: [types, {}]}];
-  if (rid === null) {
-    calls.push({procedure: 'lookup', arguments: ['alias', '']});
+
+  // helper functions
+  // this defines how a tree resource looks
+  function makeResource(rid, type, children) {
+    var resource = {rid: rid, type: type};
+    if (typeof children !== 'undefined') {
+      resource.children = children;
+    }
+    return resource;
   }
+  // visit a resource, and add to
+  // the list of info requests to make in batch later
   function visit(rid, type, depth) {
     var visitFn = options.visit || null;
     if (visitFn !== null) {
@@ -218,6 +264,27 @@ function _tree(auth, options, depth, client_rid, infoRequests, callback) {
       }
     }
   }
+
+  var rid = client_rid;
+
+  // if we've reached depth and already have
+  // an rid, we don't need to make RPC calls 
+  if (depth === options.depth && rid !== null) {
+    visit(rid, 'client', depth);
+    return callback(null, makeResource(rid, 'client'), infoRequests);
+  }
+
+  // Otherwise, we need to figure out what calls to make
+  var calls = [];
+  if (depth !== options.depth) {
+    // we're not yet at depth, so do a listing
+    calls.push({procedure: 'listing', arguments: [types, {}]});
+  }
+  if (rid === null) {
+    // rid is unknown, so look it up
+    calls.push({procedure: 'lookup', arguments: ['alias', '']});
+  }
+
   exports.callMulti(
     auth,
     calls,
@@ -225,42 +292,33 @@ function _tree(auth, options, depth, client_rid, infoRequests, callback) {
       if (err) {
         return callback(err);
       }
-      var status = rpcresponse[0].status;
-      if (status !== 'ok') {
-        return callback({status: status});
+      err = exports.error(rpcresponse);
+      if (err) {
+        return callback({error: err.toString()});
       }
-      if (rpcresponse.length === 2) {
+      var lookupIdx = _.pluck(calls, 'procedure').indexOf('lookup');
+      if (lookupIdx !== -1) {
         // root RID lookup
-        status = rpcresponse[1].status;
-        if (status !== 'ok') {
-          return callback({status: status || null});
-        }
-        rid = rpcresponse[1].result;
+        rid = rpcresponse[lookupIdx].result;
       }
       visit(rid, 'client', depth);
-      var all_rids = rpcresponse[0].result;
-      if (_.flatten(_.values(all_rids)).length === 0) {
-        return callback(null, {}, []);
+      var listingIdx = _.pluck(calls, 'procedure').indexOf('listing');
+
+      if (listingIdx === -1) {
+        return callback(null, makeResource(rid, 'client'), infoRequests);
       }
+
+      var all_rids = rpcresponse[listingIdx].result;
       var resources = [];
-      var makeObj = function(rid) { 
-        return {rid: rid, type: type}; 
-      };
-      for (var i = 0; i < types.length; i++) {
-        var type = types[i];
-        resources = resources.concat(_.map(all_rids[type], makeObj));
-      }
-      if (options.hasOwnProperty('depth')) {
-        if (depth === options.depth) {
-          return callback(null, null, null);
-        }
-      }
+      _.each(types, function(type) {
+        _.each(all_rids[type], function(rid) {
+          resources.push(makeResource(rid, type));
+        });
+      });
+
       // add tree to each resource
       var limitConcurrent = 10;
       async.mapLimit(resources, limitConcurrent, function(resource, mapLimitCallback) {
-        if (resource.type !== 'client') {
-          visit(resource.rid, resource.type, depth + 1);
-        }
         if (resource.type === 'client') {
           // resource is a client
           _tree(auth, options, depth + 1, resource.rid, infoRequests, function(err, tree) {
@@ -284,7 +342,8 @@ function _tree(auth, options, depth, client_rid, infoRequests, callback) {
             mapLimitCallback(null, resource);
           });
         } else {
-          // resource is not a client
+          // non-clients get visited but don't get a recursive call
+          visit(resource.rid, resource.type, depth + 1);
           mapLimitCallback(null, resource);
         }
       },
@@ -292,7 +351,7 @@ function _tree(auth, options, depth, client_rid, infoRequests, callback) {
         if (err) {
           return callback(err);
         }
-        callback(null, {rid: rid, type: 'client', children: children}, infoRequests);
+        callback(null, makeResource(rid, 'client', children), infoRequests);
       });
     }
   );
@@ -345,6 +404,6 @@ exports.batch = function(auth, calls, options, callback) {
   });
  
   async.parallelLimit(rpcRequests, parallelLimit, function(err, responses) {
-    callback(null, _.flatten(responses));
+    callback(err, _.flatten(responses));
   });
 };

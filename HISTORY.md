@@ -1,3 +1,7 @@
+# 0.3.2 (2015-01-24)
+
+- don't call listing unnecessarily when depth is reached
+
 # 0.3.1 (2015-01-24)
 
 - breaking change: make walk() synchronous

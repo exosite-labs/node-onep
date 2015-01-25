@@ -16,6 +16,10 @@ function genErr(err, rpcresponse, httpresponse) {
   return msg;
 }
 
+function jstr(value, replacer, space) {
+  return JSON.stringify(value, replacer, space);
+}
+
 describe('app', function() {
   if (config.useMockServer) {
     rpc.setOptions(config.mockOptions);
@@ -95,21 +99,38 @@ describe('app', function() {
           rpc.tree(ROOT,
             {
               depth: 2,
-              resource_callback: function (rid, type, depth) {
+              visit: function (rid, type, depth) {
                 //console.log('Visiting ' + rid + ' (' + type + ') depth:' + depth);
+              },
+              info: function(rid, type, depth) {
+                console.log('info fn was called!');
+                return type === 'dataport' ?  {description: true} : {basic: true};
               },
               types: ['dataport', 'datarule', 'dispatch']
             },
             function(err, tree) { 
+              function checkInfo(res, type) {
+                var resStr = jstr(res, null, 2);
+                assert(res.hasOwnProperty('info'));
+                var keys = _.keys(res.info);
+                assert.equal(keys.length, 1);
+                assert.equal(keys[0], type, resStr);
+              }
               assert(!err, 'General error ' + err);
+
+              // test root
               assert(_.isObject(tree));
               assert(tree.hasOwnProperty('rid'));
               assert(tree.type === 'client');
-              assert(tree.children.length===2);
-              assert(tree.children[0].hasOwnProperty('rid'));
-              assert(tree.children[1].hasOwnProperty('rid'));
+              checkInfo(tree, 'basic');
+
+              // test children
+              assert(tree.children.length === 2);
+              _.each(tree.children, function(child) {
+                assert(child.hasOwnProperty('rid'));
+                checkInfo(child, child.type === 'dataport' ? 'description' : 'basic');
+              });
               var clientIdx = tree.children[0].type === 'dataport' ? 1 : 0;
-              console.log(JSON.stringify(tree.children[clientIdx]));
               assert.equal(tree.children[clientIdx].children[0].type, 'dataport');
               assert.equal(tree.children[clientIdx === 0 ? 1 : 0].type, 'dataport');
               assert(tree.children[1].hasOwnProperty('rid'));
