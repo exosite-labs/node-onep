@@ -2,6 +2,7 @@
 
 - tree speed improvements: don't call listing unnecessarily when depth is 
   reached and call info for clients with listing request
+- add createFromSpec for more compact test setup
 
 # 0.3.1 (2015-01-24)
 
