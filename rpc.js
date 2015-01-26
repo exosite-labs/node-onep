@@ -13,6 +13,10 @@ var OPTIONS = {
   https: false
 };
 
+function jstr(value, replacer, space) {
+  return JSON.stringify(value, replacer, space);
+}
+
 /**
  * Split array a into chunks of at most size N
  * Destroys a and returns array of chunks, e.g. 
@@ -226,6 +230,30 @@ function _walk(tree, visit, depth) {
   }
 }
 
+/**
+ * Call multiple RPC procedures and callback with an error if there's a
+ * general error or if any procedure response is not OK. Returns
+ * array of results if all OK.
+ * calls is an abbreviated form [<proc-string>, <arg-array>] rather than
+ * {procedure: <proc-string>, arguments: <arg-array>}
+ */
+function callMultiOK(auth, calls, callback) {
+  calls = _.map(calls, function(c) {
+    return {procedure: c[0], arguments: c[1]};
+  });
+  exports.callMulti(auth, calls,  
+    function(err, rpcresponse, httpresponse) {
+      if (err) {
+        return callback(err);
+      }
+      err = exports.error(rpcresponse);
+      if (err) {
+        return callback({error: err.toString()});
+      }
+      callback(null, _.pluck(rpcresponse, 'result'));
+    });
+}
+
 // handle listing single client and call back
 function _tree(auth, options, depth, client_rid, infoRequests, callback) {
   if (_.isString(auth)) {
@@ -296,41 +324,38 @@ function _tree(auth, options, depth, client_rid, infoRequests, callback) {
   var calls = [];
   if (depth !== options.depth) {
     // we're not yet at depth, so do a listing
-    calls.push({procedure: 'listing', arguments: [types, {}]});
+    calls.push(['listing', [types, {}]]);
   }
   if (rid === null) {
     // rid is unknown, so look it up
-    calls.push({procedure: 'lookup', arguments: ['alias', '']});
+    calls.push(['lookup', ['alias', '']]);
   } else {
     // if we need info for this node, piggy-back an info procedure
     // call on this RPC request instead of queuing it at the end.
     var infoOptions = getInfo(rid, 'client', depth);
     if (infoOptions !== null) {
-      calls.push({procedure: 'info', arguments: [rid, infoOptions]});
+      calls.push(['info', [rid, infoOptions]]);
     }
   }
 
-  exports.callMulti(
+  callMultiOK(
     auth,
     calls,
-    function(err, rpcresponse, httpresponse) {
+    function(err, results) {
       if (err) {
         return callback(err);
       }
-      err = exports.error(rpcresponse);
-      if (err) {
-        return callback({error: err.toString()});
-      }
 
-      var lookupIdx = _.pluck(calls, 'procedure').indexOf('lookup');
+      var callProcs = _.map(calls, function(c) { return c[0]; });
+      var lookupIdx = callProcs.indexOf('lookup');
       if (lookupIdx !== -1) {
         // root RID lookup
-        rid = rpcresponse[lookupIdx].result;
+        rid = results[lookupIdx];
       }
-      var infoIdx = _.pluck(calls, 'procedure').indexOf('info');
+      var infoIdx = callProcs.indexOf('info');
       var clientInfo = null; 
       if (infoIdx !== -1) {
-        clientInfo = rpcresponse[infoIdx].result;
+        clientInfo = results[infoIdx];
         // visit without queuing a call for info
         visit(rid, 'client', depth);
       } else {
@@ -340,12 +365,12 @@ function _tree(auth, options, depth, client_rid, infoRequests, callback) {
         visitAndQueue(rid, 'client', depth);
       }
 
-      var listingIdx = _.pluck(calls, 'procedure').indexOf('listing');
+      var listingIdx = callProcs.indexOf('listing');
       if (listingIdx === -1) {
         return callback(null, makeResource(rid, 'client', null, clientInfo), infoRequests);
       }
 
-      var all_rids = rpcresponse[listingIdx].result;
+      var all_rids = results[listingIdx];
       var resources = [];
       _.each(types, function(type) {
         _.each(all_rids[type], function(rid) {
@@ -442,5 +467,186 @@ exports.batch = function(auth, calls, options, callback) {
  
   async.parallelLimit(rpcRequests, parallelLimit, function(err, responses) {
     callback(err, _.flatten(responses));
+  });
+};
+
+// check that an object has only specified keys
+function hasOnly(obj, keys, valid) {
+  return _.every(_.keys(obj), function(k) { 
+    return keys.indexOf(k) !== -1 && (valid ? valid(k) : true);
+  });
+}
+// check that every object in a list satisfies hasOnly()
+function listHasOnly(list, subkeys, valid, validObj) {
+  return _.every(list, function(o) {
+    return hasOnly(o, subkeys, valid) && (validObj ? validObj(o) : true);
+  });
+} 
+
+
+/**
+ * General error/no error callback
+ * @callback specCallback
+ * @param {object} error - Error instance
+ * @param {object} rids - arrays of rids in "dataports", "scripts", 
+ *                        and "clients" in the same order they occur 
+ *                        in the spec.
+ */
+
+/** 
+ * Create dataports and scripts for a client
+ *  based on a subset of Exoline spec: 
+ *  https://github.com/exosite/exoline#spec
+ * 
+ * Supported spec subset:
+ *  dataports: alias, format, unit, name, initial
+ *  scripts: alias, code, name
+ * Additional capabilities beyond Exoline's spec:
+ *  clients: alias, name, description
+ *
+ * @param {object} auth - auth param, e.g. {cik: "123..."} or just a string cik.
+ * @param {object} spec - what dataports and scripts to create in the
+ *                        client refererenced by auth. May contain
+ *                        "dataports" and "scripts" keys which contain lists
+ *                        of dataport, script, and client` spec objects, 
+ *                        respectively.  E.g., to create one dataport and one 
+ *                        script, pass:
+ *                        {
+ *                          dataports: [{alias: temp_c, format: float, initial: 22}],
+ *                          scripts: [{alias: hello, code: "debug('Hello, World!')"}] 
+ *                        } 
+ *                        Note that unlike Exoline spec, no validation is
+ *                        done. It's just reusing the spec format to make it
+ *                        easier to create devices.
+ *
+ * @param {errCallback) callback - whether or not there was an error 
+ */
+exports.createFromSpec = function(auth, spec, callback) {
+
+  var supportBaseKeys = ['dataports', 'scripts', 'clients'];
+  if (!hasOnly(spec, supportBaseKeys, 
+      function(k) { return _.isArray(spec[k]); })) {
+    return callback(new Error("spec base keys should be in " + jstr(supportBaseKeys) + " and be arrays."));
+  }
+
+  // validate dataports
+  var supportDataportKeys = ['alias', 'format', 'name', 'initial'];
+  var dataports = _.has(spec, 'dataports') ? spec.dataports : [];
+  if (!listHasOnly(dataports, supportDataportKeys, null,
+    function(o) { return _.has(o, 'alias'); })) {
+    return callback(new Error("spec dataports must have key \"alias\" and may only have these: " + jstr(supportDataportKeys)));
+  }
+   
+  // validate scripts
+  var supportScriptKeys = ['alias', 'code', 'name'];
+  var scripts = _.has(spec, 'scripts') ? spec.scripts: [];
+  if (!listHasOnly(scripts, supportScriptKeys, null,
+      function(o) { return _.has(o, 'alias') && _.has(o, 'code'); })) {
+    return callback(new Error("spec scripts must have \"alias\" and \"code\" and may only have these: " + jstr(supportScriptKeys)));
+  }
+
+  // validate clients
+  var supportClientKeys = ['name', 'alias', 'description'];
+  var clients = _.has(spec, 'clients') ? spec.clients: [];
+  if (!listHasOnly(clients, supportClientKeys, null, null)) {
+    return callback(new Error("spec clients may only have these: " + jstr(supportClientKeys)));
+  }
+
+
+  // first, create all the dataports and scripts
+  var calls = [];
+  _.each(dataports, function(dp) {
+    var desc = {
+      retention: {
+        count: "infinity",
+        duration: "infinity"
+      }
+    };
+    desc.format = _.has(dp, 'format') ? dp.format : 'string';
+    if (_.has(dp, 'name')) {
+      desc.name = dp.name;
+    }
+    calls.push(['create', ['dataport', desc]]);
+  });
+  _.each(scripts, function(script) {
+    var desc = {
+      format: 'string',
+      name: _.has(script, 'name') ? script.name : script.alias,
+      preprocess: [],
+      rule: {
+        script: script.code 
+      },
+      visibility: 'parent',
+      retention: {
+        count: 'infinity',
+        duration: 'infinity'
+      }
+    };
+    calls.push(['create', ['datarule', desc]]);
+  });
+  _.each(clients, function(client) {
+    var desc = _.has(client, 'description') ? client.description : {
+      limits: {
+        client: 'inherit',
+        dataport: 'inherit',
+        datarule: 'inherit',
+        disk: 'inherit',
+        dispatch: 'inherit',
+        email: 'inherit',
+        email_bucket: 'inherit',
+        http: 'inherit',
+        http_bucket: 'inherit',
+        share: 'inherit',
+        sms: 'inherit',
+        sms_bucket: 'inherit',
+        xmpp: 'inherit',
+        xmpp_bucket: 'inherit'},
+    };
+    if (_.has(client, 'name')) {
+      desc.name = client.name;
+    }
+    calls.push(['create', ['client', desc]]);
+  });
+  var allResources = dataports.concat(scripts).concat(clients);
+  callMultiOK(auth, calls, function(err, results) {
+    if (err) {
+      return callback(err);
+    }
+    var rids = results;
+
+    // second, map aliases and write any initial values
+    calls = [];
+    _.each(rids, function(rid, i) {
+      if (_.has(allResources[i], 'alias')) {
+        calls.push(['map', ['alias', rid, allResources[i].alias]]);
+      }
+      if (_.has(allResources[i], 'initial')) {
+        calls.push(['write', [rid, allResources[i].initial]]);
+      }
+    }); 
+    callMultiOK(auth, calls, function(err, results) {
+      if (err) {
+        return callback(err);
+      }
+      var specResponse = {
+        dataports: [],
+        scripts: [],
+        clients: []
+      };
+      var i = 0;
+      _.each(dataports, function(dp) {
+        specResponse.dataports.push(rids[i]);
+        i++;
+      });      
+      _.each(scripts, function(script) {
+        specResponse.scripts.push(rids[i]);
+        i++;
+      });
+      _.each(clients, function(client) {
+        specResponse.clients.push(rids[i]);
+        i++;
+      });
+      callback(null, specResponse);
+    });
   });
 };

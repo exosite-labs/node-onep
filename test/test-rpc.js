@@ -75,25 +75,26 @@ describe('app', function() {
     it('should be able to get tree for the root client', function(done) {
       async.series([
         function(callback) {
-          rpc.callMulti(ROOT,
-            [{procedure: 'create', arguments: ['client', {limits: {dataport: 1}}]},
-             {procedure: 'create', arguments: ['dataport', 
-               {format: 'string', retention: {count: "infinity", duration: "infinity"}}]}],
-            function(err, rpcresponse, httpresponse) {
-              assert(!err, genErr(err, rpcresponse, httpresponse));
-              for (var i = 0; i < 2; i++) {
-                assert.equal(rpcresponse[i].status, 'ok', 'RPC response is ok');
-              }
-              var childrid = rpcresponse[0].result;
-              rpc.callMulti(
-                {cik: ROOT, client_id: childrid},
-                [{procedure: 'create', arguments: ['dataport', {name: 'ChildFloat', format: 'float', retention: {count: "infinity", duration: "infinity"}}]}],
-                function(err, rpcresponse, httpresponse) {
-                  assert(!err, genErr(err, rpcresponse, httpresponse));
-                  assert.equal(rpcresponse[0].status, 'ok', 'RPC response is ok');
-                  callback(err);
-                });
-            });
+          rpc.createFromSpec(ROOT, {
+              clients: [{name: 'child'}],
+              dataports: [{name: 'ChildFloat', format: 'float', alias: 'childfloat'}]
+            }, function(err, rids) {
+            assert(!err, '' + err);
+            assert.equal(rids.clients.length, 1);
+            assert.equal(rids.dataports.length, 1);
+            var childrid = rids.clients[0];
+            assert.equal(childrid.length, 40);
+            rpc.createFromSpec(
+              {cik: ROOT, client_id: childrid},
+              {dataports: [
+                {name: 'ChildFloat', format: 'float', alias: 'childfloat'},
+                {name: 'ChildString', format: 'string', alias: 'childstring'}
+              ]}, function(err, rids) {
+                assert(!err, '' + err);
+                assert(rids.dataports.length === 2);
+                callback(err);
+              });
+          });
         },
         function(callback) {
           rpc.tree(ROOT,
@@ -103,7 +104,7 @@ describe('app', function() {
                 //console.log('Visiting ' + rid + ' (' + type + ') depth:' + depth);
               },
               info: function(rid, type, depth) {
-                return type === 'dataport' ?  {description: true} : {basic: true};
+                return type === 'dataport' ?  {description: true} : {basic: true, aliases: true};
               },
               types: ['dataport', 'datarule', 'dispatch']
             },
@@ -112,8 +113,7 @@ describe('app', function() {
                 var resStr = jstr(res, null, 2);
                 assert(res.hasOwnProperty('info'));
                 var keys = _.keys(res.info);
-                assert.equal(keys.length, 1);
-                assert.equal(keys[0], type, resStr);
+                assert(_.contains(keys, type));
               }
               assert(!err, 'General error ' + jstr(err));
 
@@ -132,7 +132,11 @@ describe('app', function() {
               var clientIdx = tree.children[0].type === 'dataport' ? 1 : 0;
               assert.equal(tree.children[clientIdx].children[0].type, 'dataport');
               assert.equal(tree.children[clientIdx === 0 ? 1 : 0].type, 'dataport');
-              assert(tree.children[1].hasOwnProperty('rid'));
+              assert(tree.children[0].hasOwnProperty('rid'));
+              assert(tree.children[clientIdx].children.length === 2);
+              assert(_.every(tree.children[clientIdx].children, function(child) { 
+                return ['ChildFloat', 'ChildString'].indexOf(child.info.description.name) !== -1;
+              }));
               done();
               callback(null);
             });
