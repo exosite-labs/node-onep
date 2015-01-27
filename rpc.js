@@ -218,17 +218,23 @@ exports.tree = function(auth, options, callback) {
  * calling callback(err, tree) when the visit is complete.
  */
 exports.walk = function(tree, visit) {
-  _walk(tree, visit, 0);
-};
-
-function _walk(tree, visit, depth) {
-  visit(tree, depth);
-  if (tree.hasOwnProperty('children')) {
-    for (var i = 0; i < tree.children.length; i++) {
-      _walk(tree.children[i], visit, depth + 1);
+  var depth = 0;
+  var gen = [tree];
+  var nextgen = [];
+  while (gen.length > 0) {
+    for (var i = 0; i < gen.length; i++) {
+      visit(gen[i], depth);      
+      if (_.has(gen[i], 'children')) {
+        for (var j = 0; j < gen[i].children.length; j++) {
+          nextgen.push(gen[i].children[j]);
+        }
+      }
     }
+    gen = nextgen;
+    nextgen = [];
+    depth += 1;
   }
-}
+};
 
 /**
  * Call multiple RPC procedures and callback with an error if there's a

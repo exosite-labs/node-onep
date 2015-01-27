@@ -1,3 +1,7 @@
+# 0.3.3 (2015-01-27)
+
+- make walk() iterative and breadth-first
+
 # 0.3.2 (2015-01-25)
 
 - tree speed improvements: don't call listing unnecessarily when depth is 
