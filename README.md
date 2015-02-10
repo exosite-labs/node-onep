@@ -223,7 +223,7 @@ rpc.walk(tree, visit);
 
  * `tree` is the object returned by calling tree()
 
- * calls `visit(resource, depth)` on each resource
+ * calls `visit(resource, depth, parentRID)` on each resource. For the root resource, parentRID is undefined.
 
 
 ### rpc.setOptions

@@ -137,6 +137,27 @@ describe('app', function() {
               assert(_.every(tree.children[clientIdx].children, function(child) { 
                 return ['ChildFloat', 'ChildString'].indexOf(child.info.description.name) !== -1;
               }));
+
+              // test parent RID in walk visit function
+              var testVisit = {
+                rid: tree.children[clientIdx].children[0].rid,
+                depth: 2,
+                parentRid: tree.children[clientIdx].rid,
+                found: false  // init to false
+              };
+
+              rpc.walk(tree, function(resource, depth, parentRid) {
+                if (depth === 0) {
+                  assert(typeof parentRid === 'undefined', 'for root, parentRID is undefined in walk()');
+                }
+                if (resource.rid === testVisit.rid) {
+                  assert.equal(parentRid, testVisit.parentRid, 'parent RID matches in walk()');
+                  assert.equal(depth, testVisit.depth, 'depth matches in walk()');
+                  testVisit.found = true; 
+                }
+              });
+
+              assert(testVisit.found, 'found child in walk()');
               done();
               callback(null);
             });

@@ -202,7 +202,7 @@ exports.tree = function(auth, options, callback) {
         }
       });
       exports.walk(tree, 
-        function(resource, depth) {
+        function(resource, depth, parentRid) {
           if (resource.rid in info) {
             resource.info = info[resource.rid];
           }
@@ -214,19 +214,20 @@ exports.tree = function(auth, options, callback) {
 
 /**
  * Walks the tree object that is the result of tree(),
- * calling visit(tree, depth) on each resource and expecting
+ * calling visit(tree, depth, parentRID) on each resource and expecting
  * calling callback(err, tree) when the visit is complete.
+ * For the root resource, parentRID is undefined.
  */
 exports.walk = function(tree, visit) {
   var depth = 0;
-  var gen = [tree];
+  var gen = [{res: tree}];
   var nextgen = [];
   while (gen.length > 0) {
     for (var i = 0; i < gen.length; i++) {
-      visit(gen[i], depth);      
-      if (_.has(gen[i], 'children')) {
-        for (var j = 0; j < gen[i].children.length; j++) {
-          nextgen.push(gen[i].children[j]);
+      visit(gen[i].res, depth, gen[i].par);      
+      if (_.has(gen[i].res, 'children')) {
+        for (var j = 0; j < gen[i].res.children.length; j++) {
+          nextgen.push({res: gen[i].res.children[j], par: gen[i].res.rid});
         }
       }
     }

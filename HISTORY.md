@@ -1,3 +1,7 @@
+# 0.3.4 (2015-02-10)
+
+- pass parent RID to walk() visit function
+
 # 0.3.3 (2015-01-27)
 
 - make walk() iterative and breadth-first
