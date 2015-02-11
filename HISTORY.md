@@ -1,3 +1,7 @@
+# 0.3.5 (2015-02-11)
+
+- update onep-mock to reduce dependencies
+
 # 0.3.4 (2015-02-10)
 
 - pass parent RID to walk() visit function
