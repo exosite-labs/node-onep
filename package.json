@@ -22,7 +22,7 @@
     "async": "~0.2.9",
     "underscore": "~1.5.2",
     "request": "~2.27.0",
-    "onep-mock": "0.0.6"
+    "onep-mock": "0.0.7"
   },
   "main": "rpc",
   "devDependencies": {
