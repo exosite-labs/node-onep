@@ -1,3 +1,7 @@
+# 0.3.6 (2015-02-11)
+
+- point to new repo location
+
 # 0.3.5 (2015-02-11)
 
 - update onep-mock to reduce dependencies
