@@ -25,7 +25,8 @@
   },
   "main": "rpc",
   "devDependencies": {
-    "onep-mock": "0.0.7"
+    "onep-mock": "0.0.7",
+    "istanbul": "~0.3.5"
   },
   "engines": {
     "node": "*"

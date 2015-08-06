@@ -1,12 +1,28 @@
 var assert = require('assert');
 var _ = require('underscore');
 var async = require('async');
+var crypto = require('crypto');
 
 var rpc = require('../rpc');
 var config = require('./config');
 var mock = require('onep-mock');
 
+
 var ROOT = config.rootCIK;
+
+function random (howMany, chars) {
+  chars = chars || 
+    "abcdefghijklmnopqrstuwxyzABCDEFGHIJKLMNOPQRSTUWXYZ0123456789";
+  var rnd = crypto.randomBytes(howMany);
+  var value = new Array(howMany);
+  var len = chars.length;
+
+  for (var i = 0; i < howMany; i++) {
+    value[i] = chars[rnd[i] % len];
+  }
+
+  return value.join('');
+}
 
 function genErr(err, rpcresponse, httpresponse) {
   var msg = 'General error. ' + err ;
@@ -40,6 +56,56 @@ describe('app', function() {
           assert(!err, genErr(err, rpcresponse, httpresponse));
           assert.equal(rpcresponse[0].status, 'ok', 'RPC response is ok');
           done();
+      });
+    });
+  });
+
+  function withTemporaryDataport(callback) {
+    rpc.createFromSpec(ROOT, {
+        clients: [{name: 'child'}],
+        dataports: [{name: 'ChildFloat', format: 'float', alias: 'childfloat' + random(10)}]
+      }, function(err, rids) {
+      assert(!err, JSON.stringify(err));
+      
+      var childrid = rids.clients[0];
+      var auth = {cik: ROOT, client_id: childrid};
+      rpc.createFromSpec(
+        auth,
+        {dataports: [
+          {name: 'ChildFloat', format: 'float', alias: 'dataport' + random(10)}
+        ]}, function(err, rids) {
+          assert(!err, '' + err);
+          callback(auth, rids.dataports[0], function(callback) {
+            // test done. do cleanup
+            rpc.call(ROOT, 'drop', [childrid], function(err, rpcresponse) {
+              assert(!err, '' + err);  
+              assert.equal(rpcresponse[0].status, 'ok');
+              callback(null);
+            });
+          });
+        });
+    });
+  }
+
+  describe('massive call()', function() {
+    it('should be able to make a lot of connections simultaneously', function(done) {
+      withTemporaryDataport(function(auth, dataport_rid, cleanup) {
+        // make a big list of numbers
+        var nums = [];
+        for (var i = 0; i <= 50; i++) {
+          nums.push(i); 
+        }
+        async.map(nums, function(i, callback) {
+          rpc.call(auth, 'read', [dataport_rid, {limit: 1}], function(err, rpcresponse) {
+            assert(rpcresponse[0].result.length === 0);
+            callback(null, rpcresponse[0]);
+          });
+        }, function(err, results) {
+          assert(!err, err + '');
+          cleanup(function(err) {
+            done();
+          });
+        });
       });
     });
   });
