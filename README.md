@@ -241,8 +241,8 @@ rpc.setOptions(\<options\>)
   host: 'm2.exosite.com',
   path: '/api:v1/rpc/process',
   agent: 'node-onep',
-  https: false,
-  port: 80
+  https: true,
+  port: 443
 }
 ```
 

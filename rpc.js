@@ -10,7 +10,7 @@ var OPTIONS = {
   host: 'm2.exosite.com',
   path: '/api:v1/rpc/process',
   agent: 'node-onep',
-  https: false
+  https: true
 };
 
 function jstr(value, replacer, space) {
