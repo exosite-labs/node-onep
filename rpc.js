@@ -10,7 +10,8 @@ var OPTIONS = {
   host: 'm2.exosite.com',
   path: '/api:v1/rpc/process',
   agent: 'node-onep',
-  https: true
+  https: true,
+  strictSSL: true
 };
 
 function jstr(value, replacer, space) {
@@ -73,7 +74,8 @@ exports.callMulti = function(auth, calls, callback) {
       'content-type': 'application/json; charset=utf-8',
       'user-agent': OPTIONS.agent
     },
-    body: body
+    body: body,
+    strictSSL: OPTIONS.strictSSL
   };
   if (OPTIONS.hasOwnProperty('timeout')) {
     options.timeout = OPTIONS.timeout;

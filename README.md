@@ -242,11 +242,12 @@ rpc.setOptions(\<options\>)
   path: '/api:v1/rpc/process',
   agent: 'node-onep',
   https: true,
-  port: 443
+  port: 443,
+  strictSSL: true
 }
 ```
 
-You can also specify `timeout` in milliseconds, which defaults to the default for the request module.
+You may also specify `timeout` in milliseconds, which defaults to the default for the request module.
 
 ## Tests
 

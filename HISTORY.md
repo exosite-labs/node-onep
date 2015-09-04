@@ -1,3 +1,7 @@
+# 0.4.1 (2015-09-03)
+
+- add strictSSL option
+
 # 0.3.6 (2015-02-11)
 
 - point to new repo location
